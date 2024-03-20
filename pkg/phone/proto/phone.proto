@@ -1,0 +1,58 @@
+syntax = "proto3";
+option go_package = "grpc-chat.com/phone";
+package phone;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+message ErrorStatus {
+  string message = 1;
+  repeated google.protobuf.Any details = 2;
+}
+
+message Person{
+    string name = 1;
+    int32 id = 2;
+    string email = 3;
+
+    message PhoneNumber {
+        string number = 1;
+        optional PhoneType type = 2;
+    }
+
+    repeated PhoneNumber phones = 4;
+    google.protobuf.Timestamp last_update = 5;
+}
+
+enum PhoneType{
+PHONE_TYPE_UNSPECIFIED = 0;
+  PHONE_TYPE_MOBILE = 1;
+  PHONE_TYPE_HOME = 2;
+  PHONE_TYPE_WORK = 3;
+}
+
+message AddressBook {
+    repeated Person people = 1;
+}
+
+message Reserved {
+    // repeated int32 foo = 1;
+    // int32 a = 2;
+    // string b = 3;
+    // float c = 4;
+    // int64 d = 10;
+    reserved 2, 3, 4, 10;
+    reserved "foo";
+    Person.PhoneNumber phone = 11;
+    map<int32, Person> person_map= 12;
+}
+
+message CallResponse {
+    Person reciever = 1;
+    ErrorStatus callStatus = 2;
+}
+
+service PhoneService {
+    rpc VoiceCall(Person.PhoneNumber) returns (CallResponse);
+    // rpc 
+}
