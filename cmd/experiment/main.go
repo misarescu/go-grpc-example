@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
+	"sync"
 	"time"
 )
 
@@ -57,7 +57,8 @@ func ErrorAndExit(e error) {
 	os.Exit(1)
 }
 
-func FetchWeather(city string) (WeatherResponse, error) {
+func FetchWeather(city string, res chan<- string, wg *sync.WaitGroup) (WeatherResponse, error) {
+	defer wg.Done()
 	apiUrl := fmt.Sprintf("https://api.open-meteo.com/v1/forecast?latitude=%.2f&longitude=%.2f&current=temperature_2m,rain,wind_speed_10m&timezone=auto&forecast_days=1", citiesMap[city].Latitude, citiesMap[city].Longitude)
 	// log.Printf("fetch url: %s", apiUrl)
 	data := WeatherResponse{}
@@ -73,38 +74,28 @@ func FetchWeather(city string) (WeatherResponse, error) {
 		return WeatherResponse{}, err
 	}
 
+	res <- fmt.Sprintf("%+v", data)
+
 	return data, nil
 }
 
 func main() {
-	// var wg sync.WaitGroup
-	c := make(chan os.Signal, 1)
+	var wg sync.WaitGroup
+
 	res := make(chan string)
 
-	signal.Notify(c, os.Interrupt)
-
 	for city := range citiesMap {
-		// wg.Add(1)
-		go func() {
-			for {
-				// defer wg.Done()
-				data, err := FetchWeather(city)
-				if err != nil {
-					res <- fmt.Sprintf("weather data for %s: %+v", city, data)
-				}
-				time.Sleep(2 * time.Second)
-			}
-		}()
+		wg.Add(1)
+		go FetchWeather(city, res, &wg)
 	}
+	go func() {
+		wg.Wait()
+		close(res)
+	}()
 
-	for {
-		select {
-		case <-res:
-			log.Printf("%v", res)
-		case <-c:
-			log.Println("exiting")
-			os.Exit(0)
-		}
+	for r := range res {
+		log.Printf("%s", r)
 	}
+	time.Sleep(1 * time.Second)
 
 }
